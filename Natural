@@ -1,0 +1,61 @@
+import vlc
+from omxplayer.player import OMXPlayer
+from pathlib import Path
+from sys import argv, stdout
+from RPi import GPIO
+from time import sleep
+
+DEFAULT_VIDEO_FILE = "" #insert video file here
+DEFAULT_AUDIO_FILE = "" #insert audio file here
+
+DEFAULT_VOLUME = 80
+DEFAULT_MIN_VOLUME = 60
+DEFAULT_MAX_VOLUME = 100
+DEFAULT_VOLUME_STEP = 19
+
+DEFAULT_MOTION_SENSOR_PIN = 12
+DEFAULT_MAX_RATE = 2
+DEFAULT_MIN_RATE = 0.5
+DEFAULT_STEP_RATE = 0.5
+DEFAULT_STARTING_RATE = 1
+DEFAULT_DELAY = 0.1
+
+GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(DEFAULT_MOTION_SENSOR_PIN, GPIO.IN)
+
+def isMovementPresent(pin = DEFAULT_MOTION_SENSOR_PIN):
+	"""
+	This function returns data from the motion sensor
+
+	i.e. The behaviour is defined as follows:
+		If person walks infront of the thing
+			motion is present -> return true
+		else person is standing still
+			motion is absent -> return false
+
+	When GPIO gets the input from the pin, it checks to see if it's equal to 1
+	If it is, it returns True, else returns False
+	"""
+	return GPIO.input(pin) == 1
+
+if __name__ == '__main__':
+	videoPath = Path(DEFAULT_VIDEO_FILE)
+	audioPath = Path(DEFAULT_AUDIO_FILE)
+	audioPlayer = vlc.MediaPlayer(DEFAULT_AUDIO_FILE)
+#	player = OMXPlayer(videoPath, args = ["--loop"])
+	newRate = 1
+	newAudioRate = DEFAULT_VOLUME
+	while True:
+		if isMovementPresent(): #This is when we detect movement, so it has to speed up
+			newRate = min(DEFAULT_MAX_RATE, newRate + DEFAULT_STEP_RATE)
+			newAudioRate = min(DEFAULT_MAX_VOLUME, newAudioRate + DEFAULT_VOLUME_STEP)
+		else:	#This runs when movement isn't detected, so it has to slow down
+			newRate = max(DEFAULT_MIN_RATE, newRate - DEFAULT_STEP_RATE)
+			newAudioRate = max(DEFAULT_MIN_VOLUME, newAudioRate - DEFAULT_VOLUME_STEP)
+#		player.set_rate(newRate) #Setting the new rate for each loop
+		audioPlayer.audio_set_volume(newAudioRate)
+		stdout.write(str(newRate) + "\t" + str(newAudioRate)  + " \r")
+		sleep(DEFAULT_DELAY)
+
+#	player.quit()
